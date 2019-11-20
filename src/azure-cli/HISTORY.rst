@@ -3,6 +3,10 @@
 Release History
 ===============
 
+**Deployment Manager**
+
+* Add list operations for all resources.
+
 **Azure Red Hat OpenShift**
 
 * Add `--workspace-resource-id` flag to allow creation of Azure Red Hat Openshift cluster with monitoring

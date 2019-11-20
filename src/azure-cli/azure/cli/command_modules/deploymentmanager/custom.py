@@ -72,6 +72,13 @@ def cli_artifact_source_update(
 
     return instance
 
+def cli_artifact_sources_list(
+        cmd,
+        resource_group_name):
+
+    client = cf_artifact_sources(cmd.cli_ctx)
+    return client.list(
+        resource_group_name=resource_group_name)
 
 def cli_service_topology_create(
         cmd,
@@ -132,6 +139,13 @@ def cli_service_topology_update(
 
     return instance
 
+def cli_service_topologies_list(
+        cmd,
+        resource_group_name):
+
+    client = cf_service_topologies(cmd.cli_ctx)
+    return client.list(
+        resource_group_name=resource_group_name)
 
 def cli_service_create(
         cmd,
@@ -177,6 +191,15 @@ def cli_service_update(
 
     return instance
 
+def cli_services_list(
+        cmd,
+        resource_group_name,
+        service_topology_name):
+
+    client = cf_services(cmd.cli_ctx)
+    return client.list(
+        resource_group_name=resource_group_name,
+        service_topology_name=service_topology_name)
 
 def cli_service_unit_create(
         cmd,
@@ -267,6 +290,17 @@ def cli_service_unit_update(
 
     return instance
 
+def cli_service_units_list(
+        cmd,
+        resource_group_name,
+        service_topology_name,
+        service_name):
+
+    client = cf_service_units(cmd.cli_ctx)
+    return client.list(
+        resource_group_name=resource_group_name,
+        service_topology_name=service_topology_name,
+        service_name=service_name)
 
 def cli_step_create(
         cmd,
@@ -307,6 +341,13 @@ def cli_step_update(
 
     return instance
 
+def cli_steps_list(
+        cmd,
+        resource_group_name):
+    client = cf_steps(cmd.cli_ctx)
+    return client.list(
+        resource_group_name=resource_group_name)
+
 
 def cli_rollout_restart(
         cmd,
@@ -320,6 +361,12 @@ def cli_rollout_restart(
         rollout_name=rollout_name,
         skip_succeeded=bool(skip_succeeded))
 
+def cli_rollouts_list(
+        cmd,
+        resource_group_name):
+    client = cf_rollouts(cmd.cli_ctx)
+    return client.list(
+        resource_group_name=resource_group_name)
 
 def get_location_from_resource_group(cli_ctx, resource_group_name):
     from azure.cli.core.commands.client_factory import get_mgmt_service_client
