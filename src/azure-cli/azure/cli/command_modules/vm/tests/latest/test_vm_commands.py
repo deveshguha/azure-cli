@@ -678,10 +678,11 @@ class VMManagedDiskScenarioTest(ScenarioTest):
                  ])
 
         self.cmd('image create -g {rg} -n {image_3} --source {snapshot1} --data-disk-sources {disk1} {snapshot2_id} {disk2_id}'
-                 ' --os-type Linux --tags tag1=i1 --storage-sku Standard_LRS --os-disk-caching ReadWrite',
+                 ' --os-type Linux --tags tag1=i1 --storage-sku Standard_LRS --os-disk-caching ReadWrite --data-disk-caching ReadOnly',
                  checks=[
                      self.check('storageProfile.osDisk.storageAccountType', 'Standard_LRS'),
-                     self.check('storageProfile.osDisk.caching', 'ReadWrite')
+                     self.check('storageProfile.osDisk.caching', 'ReadWrite'),
+                     self.check('storageProfile.dataDisks[0].caching', 'ReadOnly')
                  ])
 
     @ResourceGroupPreparer(name_prefix='cli_test_vm_disk_upload_')
@@ -1198,16 +1199,17 @@ class VMCreateNoneOptionsTest(ScenarioTest):  # pylint: disable=too-many-instanc
 
 class VMCreateMonitorTest(ScenarioTest):
 
-    @ResourceGroupPreparer(name_prefix='cli_test_vm_create_with_monitor', location='centralus')
+    @ResourceGroupPreparer(name_prefix='cli_test_vm_create_with_monitor', location='eastus')
     def test_vm_create_with_monitor(self, resource_group):
 
         self.kwargs.update({
             'vm': 'monitorvm',
-            'workspace': 'vmlogworkspace20191009',
+            'workspace': self.create_random_name('cliworkspace', 20),
             'rg': resource_group
         })
 
         self.cmd('vm create -n {vm} -g {rg} --image UbuntuLTS --workspace {workspace}')
+        self.cmd('vm monitor log show -n {vm} -g {rg} -q "Perf | limit 10"')
 
 
 class VMBootDiagnostics(ScenarioTest):
@@ -1872,6 +1874,18 @@ class VMSSCreateAndModify(ScenarioTest):
         self.cmd('vmss deallocate --resource-group {rg} --name {vmss}')
         self.cmd('vmss delete --resource-group {rg} --name {vmss}')
         self.cmd('vmss list --resource-group {rg}', checks=self.is_empty())
+
+    @ResourceGroupPreparer(name_prefix='cli_test_vmss_scale_in_policy_')
+    def test_vmss_scale_in_policy(self, resource_group):
+        self.kwargs.update({
+            'vmss': 'vmss1'
+        })
+        self.cmd('vmss create -g {rg} -n {vmss} --image centos --scale-in-policy NewestVM', checks=[
+            self.check('vmss.scaleInPolicy.rules[0]', 'NewestVM')
+        ])
+        self.cmd('vmss update -g {rg} -n {vmss} --scale-in-policy OldestVM', checks=[
+            self.check('scaleInPolicy.rules[0]', 'OldestVM')
+        ])
 
 
 class VMSSCreateOptions(ScenarioTest):
@@ -3304,6 +3318,28 @@ class VMGalleryImage(ScenarioTest):
         self.cmd('sig image-definition delete -g {rg} --gallery-name {gallery} --gallery-image-definition {image}')
         self.cmd('sig delete -g {rg} --gallery-name {gallery}')
 
+    @ResourceGroupPreparer(name_prefix='cli_test_gallery_specialized_', location='eastus2')
+    def test_gallery_specialized(self, resource_group):
+        self.kwargs.update({
+            'gallery': 'gallery1',
+            'image': 'image1'
+        })
+        self.cmd('sig create -g {rg} --gallery-name {gallery}', checks=self.check('name', '{gallery}'))
+        self.cmd('sig image-definition create -g {rg} --gallery-name {gallery} --gallery-image-definition {image} --os-type linux --os-state specialized --hyper-v-generation V2 -p publisher1 -f offer1 -s sku1',
+                 checks=[self.check('name', '{image}'), self.check('osState', 'Specialized'),
+                         self.check('hyperVgeneration', 'V2')])
+        self.cmd('disk create -g {rg} -n d1 --size-gb 10')
+        self.cmd('disk create -g {rg} -n d2 --size-gb 10')
+        self.cmd('disk create -g {rg} -n d3 --size-gb 10')
+        s1_id = self.cmd('snapshot create -g {rg} -n s1 --source d1').get_output_in_json()['id']
+        s2_id = self.cmd('snapshot create -g {rg} -n s2 --source d2').get_output_in_json()['id']
+        s3_id = self.cmd('snapshot create -g {rg} -n s3 --source d3').get_output_in_json()['id']
+        self.cmd('sig image-version create -g {rg} --gallery-name {gallery} --gallery-image-definition {image} --gallery-image-version 1.0.0 --os-snapshot s1 --data-snapshots s2 s3',
+                 checks=[
+                     self.check('storageProfile.osDiskImage.source.id', s1_id),
+                     self.check('storageProfile.dataDiskImages[0].source.id', s2_id),
+                     self.check('storageProfile.dataDiskImages[1].source.id', s3_id),
+                 ])
 # endregion
 
 
@@ -3540,7 +3576,7 @@ class VMPriorityEvictionBillingTest(ScenarioTest):
         })
 
         # vm create
-        self.cmd('vm create -g {rg} -n {vm} --image UbuntuLTS --priority Low --eviction-policy Deallocate --max-billing=50')
+        self.cmd('vm create -g {rg} -n {vm} --image UbuntuLTS --priority Low --eviction-policy Deallocate --max-price 50')
 
         self.cmd('vm show -g {rg} -n {vm}', checks=[
             self.check('priority', 'Low'),
@@ -3549,7 +3585,7 @@ class VMPriorityEvictionBillingTest(ScenarioTest):
         ])
 
         # vmss create
-        self.cmd('vmss create -g {rg} -n {vmss} --image UbuntuLTS --lb-sku Standard --priority Low --eviction-policy Deallocate --max-billing=50', checks=[
+        self.cmd('vmss create -g {rg} -n {vmss} --image UbuntuLTS --lb-sku Standard --priority Low --eviction-policy Deallocate --max-price 50', checks=[
             self.check('vmss.virtualMachineProfile.priority', 'Low'),
             self.check('vmss.virtualMachineProfile.evictionPolicy', 'Deallocate'),
             self.check('vmss.virtualMachineProfile.billingProfile.maxPrice', 50)

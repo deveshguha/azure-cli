@@ -1883,11 +1883,11 @@ parameters:
 examples:
   - name: Update a Windows user account.
     text: az vm user update -u username -p password -n MyVm -g MyResourceGroup
-  - name: Update a Linux user account.
-    text: az vm user update -u username --ssh-key-value "$({ ~/.ssh/id_rsa.pub)" -n MyVm -g MyResourceGroup
-  - name: Update a user on all VMs in a resource group.
+  - name: Update a Linux user account. ("$(< filename)" syntax is not supported on Command Prompt or PowerShell.)
+    text: az vm user update -u username --ssh-key-value "$(< ~/.ssh/id_rsa.pub)" -n MyVm -g MyResourceGroup
+  - name: Update a user on all VMs in a resource group. ("$(< filename)" syntax is not supported on Command Prompt or PowerShell.)
     text: >
-        az vm user update -u username --ssh-key-value "$({ ~/.ssh/id_rsa.pub)" --ids $(az vm list -g MyResourceGroup --query "[].id" -o tsv)
+        az vm user update -u username --ssh-key-value "$(< ~/.ssh/id_rsa.pub)" --ids $(az vm list -g MyResourceGroup --query "[].id" -o tsv)
 
 """
 
@@ -2387,4 +2387,14 @@ examples:
     text: az vmss wait --updated --name MyScaleSet --resource-group MyResourceGroup
   - name: Place the CLI in a waiting state until the VMSS instance has been updated.
     text: az vmss wait --updated --instance-id 1 --name MyScaleSet --resource-group MyResourceGroup
+"""
+
+helps['vm monitor'] = """
+type: group
+short-summary: Manage monitor aspect for a vm.
+"""
+
+helps['vm monitor log'] = """
+type: group
+short-summary: Manage log analytics workspace for a vm.
 """

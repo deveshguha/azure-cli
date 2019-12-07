@@ -68,6 +68,7 @@ def acr_create(cmd,
 
 
 def acr_delete(cmd, client, registry_name, resource_group_name=None):
+    logger.warning('To avoid accidental removal, in a future release "az acr delete" will prompt for confirmation')
     resource_group_name = get_resource_group_name_by_registry_name(cmd.cli_ctx, registry_name, resource_group_name)
     return client.delete(resource_group_name, registry_name)
 
@@ -140,6 +141,12 @@ def acr_login(cmd,
         tenant_suffix=tenant_suffix,
         username=username,
         password=password)
+
+    # warn casing difference caused by ACR normalizing to lower on login_server
+    parts = login_server.split('.')
+    if registry_name != parts[0] and registry_name.lower() == parts[0]:
+        logger.warning('Uppercase characters are detected in the registry name. When using its server url in '
+                       'docker commands, to avoid authentication errors, use all lowercase.')
 
     from subprocess import PIPE, Popen
     p = Popen([docker_command, "login",
