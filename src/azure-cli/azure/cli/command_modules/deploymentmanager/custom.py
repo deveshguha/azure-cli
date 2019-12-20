@@ -3,6 +3,8 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
+import json
+import os
 from knack.log import get_logger
 from knack.util import CLIError
 
@@ -304,17 +306,28 @@ def cli_service_units_list(
 
 def cli_step_create(
         cmd,
-        resource_group_name,
-        step_name,
-        duration,
+        resource_group_name=None,
+        step_name=None,
+        step=None,
+        duration=None,
         location=None,
         tags=None):
 
-    waitStepProperties = WaitStepProperties(
-        attributes=WaitStepAttributes(duration=duration))
+    if (step is None and duration is None):
+        raise CLIError('usage error: specify either step or duration. If step is specified, it can either be a wait step or health check step.')  # pylint: disable=line-too-long
+
+    if (step is not None and duration is not None):
+        raise CLIError('usage error: specify only one of step or duration. If step is specified, it can either be a wait step or health check step.')  # pylint: disable=line-too-long
+
+    if step is not None:
+        step_object = get_healthcheck_step_from_json(cmd, step)
+
+    if duration is not None:
+        waitStepProperties = WaitStepProperties(attributes=WaitStepAttributes(duration=duration))
 
     if location is None:
-        location = get_location_from_resource_group(cmd.cli_ctx, resource_group_name)
+        if resource_group_name is not None:
+            location = get_location_from_resource_group(cmd.cli_ctx, resource_group_name)
 
     step = StepResource(
         properties=waitStepProperties,
@@ -374,3 +387,50 @@ def get_location_from_resource_group(cli_ctx, resource_group_name):
     client = get_mgmt_service_client(cli_ctx, ResourceType.MGMT_RESOURCE_RESOURCES)
     group = client.resource_groups.get(resource_group_name)
     return group.location
+
+def get_healthcheck_step_from_json(client, vm):
+    return get_object_from_json(client, vm, 'StepResource')
+
+def get_or_read_json(json_or_file):
+    json_obj = None
+    if is_json(json_or_file):
+        json_obj = json.loads(json_or_file)
+    elif os.path.exists(json_or_file):
+        with open(json_or_file) as f:
+            json_obj = json.load(f)
+    if json_obj is None:
+        raise ValueError(
+            """
+            The variable passed should be in valid JSON format and be supplied by az deploymentmanager step CLI commands.
+            Make sure that you use output of relevant 'az deploymentmanager step show' commands and the --out is 'json'
+            (use -o json for explicit JSON output) while assigning value to this variable.
+            Take care to edit only the values and not the keys within the JSON file or string.
+            """)
+    return json_obj
+
+
+def get_object_from_json(client, json_or_file, class_name):
+    # Determine if input is json or file
+    json_obj = get_or_read_json(json_or_file)
+
+    # Deserialize json to object
+    param = client._deserialize(class_name, json_obj)  # pylint: disable=protected-access
+    if param is None:
+        raise ValueError(
+            """
+            The variable passed should be in valid JSON format and be supplied by az deploymentmanager step CLI commands.
+            Make sure that you use output of relevant 'az deploymentmanager step show' commands and the --out is 'json'
+            (use -o json for explicit JSON output) while assigning value to this variable.
+            Take care to edit only the values and not the keys within the JSON file or string.
+            """)
+
+    return param
+
+
+def is_json(content):
+    try:
+        json.loads(content)
+    except ValueError:
+        return False
+    return True
+
