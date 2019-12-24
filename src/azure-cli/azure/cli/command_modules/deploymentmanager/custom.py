@@ -320,37 +320,51 @@ def cli_step_create(
         raise CLIError('usage error: specify only one of step or duration. If step is specified, it can either be a wait step or health check step.')  # pylint: disable=line-too-long
 
     if step is not None:
-        step_object = get_healthcheck_step_from_json(cmd, step)
+        step_resource = get_healthcheck_step_from_json(cmd, step)
+        resource_group_name = step_resource.resourceGroup
+        step_name = step_resource.name
 
-    if duration is not None:
+    elif duration is not None:
         waitStepProperties = WaitStepProperties(attributes=WaitStepAttributes(duration=duration))
 
-    if location is None:
-        if resource_group_name is not None:
-            location = get_location_from_resource_group(cmd.cli_ctx, resource_group_name)
+        if location is None:
+            if resource_group_name is not None:
+                location = get_location_from_resource_group(cmd.cli_ctx, resource_group_name)
 
-    step = StepResource(
-        properties=waitStepProperties,
-        location=location,
-        tags=tags)
+        step_resource = StepResource(
+            properties=waitStepProperties,
+            location=location,
+            tags=tags)
 
     client = cf_steps(cmd.cli_ctx)
     return client.create_or_update(
         resource_group_name=resource_group_name,
         step_name=step_name,
-        step_info=step)
+        step_info=step_resource)
 
 
 def cli_step_update(
         cmd,
         instance,
-        duration,
+        step=None,
+        duration=None,
         tags=None):
 
-    instance.properties.attributes.duration = duration
+    if (step is None and duration is None):
+        raise CLIError('usage error: specify either step or duration. If step is specified, it can either be a wait step or health check step.')  # pylint: disable=line-too-long
 
-    if tags is not None:
-        instance.tags = tags
+    if (step is not None and duration is not None):
+        raise CLIError('usage error: specify only one of step or duration. If step is specified, it can either be a wait step or health check step.')  # pylint: disable=line-too-long
+
+    if duration is not None:
+        instance.properties.attributes.duration = duration
+
+        if tags is not None:
+            instance.tags = tags
+
+    elif step is not None:
+        step_resource = get_healthcheck_step_from_json(cmd, step)
+        instance = step_resource
 
     return instance
 
