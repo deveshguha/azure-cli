@@ -306,7 +306,7 @@ def cli_service_units_list(
 
 def cli_step_create(
         cmd,
-        resource_group_name=None,
+        resource_group_name,
         step_name=None,
         step=None,
         duration=None,
@@ -319,10 +319,15 @@ def cli_step_create(
     if (step is not None and duration is not None):
         raise CLIError('usage error: specify only one of step or duration. If step is specified, it can either be a wait step or health check step.')  # pylint: disable=line-too-long
 
+    client = cf_steps(cmd.cli_ctx)
     if step is not None:
-        step_resource = get_healthcheck_step_from_json(cmd, step)
-        resource_group_name = step_resource.resourceGroup
+        step_resource = get_healthcheck_step_from_json(client, step)
         step_name = step_resource.name
+        location = step_resource.location
+
+        if location is None:
+            if resource_group_name is not None:
+                location = get_location_from_resource_group(cmd.cli_ctx, resource_group_name)
 
     elif duration is not None:
         waitStepProperties = WaitStepProperties(attributes=WaitStepAttributes(duration=duration))
@@ -336,7 +341,6 @@ def cli_step_create(
             location=location,
             tags=tags)
 
-    client = cf_steps(cmd.cli_ctx)
     return client.create_or_update(
         resource_group_name=resource_group_name,
         step_name=step_name,
@@ -363,7 +367,8 @@ def cli_step_update(
             instance.tags = tags
 
     elif step is not None:
-        step_resource = get_healthcheck_step_from_json(cmd, step)
+        client = cf_steps(cmd.cli_ctx)
+        step_resource = get_healthcheck_step_from_json(client, step)
         instance = step_resource
 
     return instance
@@ -402,8 +407,8 @@ def get_location_from_resource_group(cli_ctx, resource_group_name):
     group = client.resource_groups.get(resource_group_name)
     return group.location
 
-def get_healthcheck_step_from_json(client, vm):
-    return get_object_from_json(client, vm, 'StepResource')
+def get_healthcheck_step_from_json(client, health_check_step):
+    return get_object_from_json(client, health_check_step, 'StepResource')
 
 def get_or_read_json(json_or_file):
     json_obj = None

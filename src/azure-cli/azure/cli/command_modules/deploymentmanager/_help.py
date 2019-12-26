@@ -284,9 +284,12 @@ helps['deploymentmanager step create'] = """
 type: command
 short-summary: Creates the step.
 examples:
-  - name: Creates a step.
+  - name: Creates a wait step.
     text: >
         az deploymentmanager step create -g rg1 -l location -n contosoServiceWaitStep --duration PT30M
+  - name: Creates a health check step from a JSON file. The step information is read from the file. 
+    text: >
+        az deploymentmanager step create -g rg1 --step .\healthcheck_step.json
 """
 
 helps['deploymentmanager step show'] = """
