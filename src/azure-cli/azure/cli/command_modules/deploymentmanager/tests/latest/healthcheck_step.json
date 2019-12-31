@@ -1,7 +1,8 @@
 {
-  "location": "Central US",
-  "name": "test_(Rp-RestStep).2",
+  "name": "__HEALTH_CHECK_STEP_NAME__",
+  "location": "centralus",
   "properties": {
+    "stepType": "HealthCheck",
     "attributes": {
       "healthChecks": [
         {
