@@ -417,7 +417,7 @@ class DeploymentManagerTests(ScenarioTest):
         step_name = resource_group_name + "RestHealthCheckStep"
         updated_healthy_state_duration = "PT60M"
             
-        self.replace_string("__HEALTH_CHECK_STEP_NAME__", step_name, healthcheck_file_path)
+        self.replace_string("__HEALTH_CHECK_STEP_NAME__", step_name, healthcheck_file_path, True)
 
         self.kwargs = {
             'rg': resource_group_name,
@@ -440,6 +440,9 @@ class DeploymentManagerTests(ScenarioTest):
 
         step_id = self.cmd('deploymentmanager step show -g {rg} -n {step_name}').get_output_in_json()['id']
         self.assertFalse(step_id is None)
+
+        # Revert health check file change for playback mode.
+        self.replace_string(step_name, "__HEALTH_CHECK_STEP_NAME__", healthcheck_file_path, True)
 
         json_obj['properties']['attributes']['healthyStateDuration'] = updated_healthy_state_duration
 
@@ -830,9 +833,9 @@ class DeploymentManagerTests(ScenarioTest):
         cmd = '{} --account-name {} --account-key {}'.format(cmd, *account_info)
         return self.cmd(cmd)
 
-    def replace_string(self, replacement_symbol, replacement_value, filePath):
+    def replace_string(self, replacement_symbol, replacement_value, filePath, overridePlayback=False):
         is_playback = os.path.exists(self.recording_file)
-        if not is_playback:
+        if (not is_playback or overridePlayback):
             with fileinput.FileInput(filePath, inplace=True) as file:
                 for line in file:
                     print(line.replace(replacement_symbol, replacement_value), end='')
